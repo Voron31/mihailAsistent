@@ -53,10 +53,6 @@ opts = {
         "yes": ('да', 'конечно', 'ага'),
         "no": ('нет', 'неа', 'отмена'),
         "dis": ('открой нагрузку', 'открой диспетчер задач'),
-        "start_record": ('записывай', 'начни запись'),
-        "stop_record": ('закончи запись', 'останови запись'),
-        "open_notes": ('открой записи', 'покажи записи'),
-        "clear_notes": ('очисти записи', 'удали записи'),
         "wikipedia": ('найди википедия', 'поиск в википедии', 'что такое', 'найди в википедии'),
         "open_window": ('открой окно', 'активируй окно', 'покажи окно'),
         "close_window": ('закрой окно', 'удали окно'),
@@ -64,7 +60,8 @@ opts = {
         "ang": ('английский', 'смени язык на английский', 'английский язык'),
         "rus": ('руский', 'смени язык на руский', 'руский язык'),
         "list_windows": ('покажи окна', 'какие окна открыты', 'список окон'),
-        'change_volume': ('звук на ', 'измени звук на ')
+        'change_volume': ('звук на ', 'измени звук на '),
+        'googl_sk': ('поиск', 'ищи')
     }
 }
 
@@ -243,34 +240,50 @@ def get_volume_from_voice_input(voice_input):
     return None
 
 
-def execute_cmd(cmd, voice_input=None):
-    global awaiting_confirmation, recording
-    print_green(f"[log] Выполнение команды: {cmd}")
-    commands = {
-        'ctime': lambda: speak(f"Сейчас {datetime.now().strftime('%H:%M')}"),
-        'data': data,
-        'radio': lambda: webbrowser.open("https://www.youtube.com"),
-        'dis': lambda: os.system('taskmgr'),
-        'google': lambda: webbrowser.open_new('chrome'),
-        'spasibo': lambda: speak("Всегда пожалуйста"),
-        'kak_dela': lambda: speak("Все хорошо, спасибо что спросили"),
-        'steam': open_steam,
-        'ds': open_discord,
-        'wikipedia': lambda: speak(get_wikipedia_summary(voice_input)),
-        'open_window': lambda: open_window(clean_command(voice_input, window_cmd=True)),
-        'close_window': lambda: close_window(clean_command(voice_input, window_cmd=True)),
-        'minimize_window': lambda: minimize_window(clean_command(voice_input, window_cmd=True)),
-        'list_windows': list_windows,
-        'rus': switch_to_russian,
-        'ang': switch_to_english,
-        'change_volume': lambda: set_volume(get_volume_from_voice_input(voice_input))
-    }
+# def execute_cmd(cmd, voice_input=None):
+#     global awaiting_confirmation, recording
+#     print_green(f"[log] Выполнение команды: {cmd}")
+#     commands = {
+#         'ctime': lambda: speak(f"Сейчас {datetime.now().strftime('%H:%M')}"),
+#         'data': data,
+#         'radio': lambda: webbrowser.open("https://www.youtube.com/watch?v=7x3RW2BCG68&list=PL-SnCU0L3jIkKCh8o3W9hY8qTmHEYTtpt"),
+#         'dis': lambda: os.system('taskmgr'),
+#         'google': lambda: webbrowser.open_new('chrome'),
+#         'spasibo': lambda: speak("Всегда пожалуйста"),
+#         'kak_dela': lambda: speak("Все хорошо, спасибо что спросили"),
+#         'steam': open_steam,
+#         'ds': open_discord,
+#         'wikipedia': lambda: speak(get_wikipedia_summary(voice_input)),
+#         'open_window': lambda: open_window(clean_command(voice_input, window_cmd=True)),
+#         'close_window': lambda: close_window(clean_command(voice_input, window_cmd=True)),
+#         'minimize_window': lambda: minimize_window(clean_command(voice_input, window_cmd=True)),
+#         'list_windows': list_windows,
+#         'rus': switch_to_russian,
+#         'ang': switch_to_english,
+#         'change_volume': lambda: set_volume(get_volume_from_voice_input(voice_input)),
+#         'googl_sk': search_google
+#     }
+#
+#     if cmd in commands:
+#         commands[cmd]()
+#     else:
+#         print("Извините, я не понимаю эту команду.")
 
-    if cmd in commands:
-        commands[cmd]()
-    else:
-        print("Извините, я не понимаю эту команду.")
 
+
+def search_google():
+    recongnizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Говорите...")
+        audio = recongnizer.listen(source)
+        try:
+            print("Поиск...")
+            query = recongnizer.recognize_google(audio,language='ru-Ru')
+            print(f"Вы сказали: {query}")
+            search_url = f"https://www.google.com/search?q={query}"
+            webbrowser.open(search_url)
+        except sr.UnknownValueError:
+            print("Ошибка")
 
 def data():
     speak(f"Сегодня {datetime.now().strftime('%d %B %Y')}")
@@ -353,8 +366,6 @@ def clean_command(cmd, window_cmd=False):
     return cleaned_cmd
 
 
-
-
 class VoiceAssistantApp(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -362,55 +373,185 @@ class VoiceAssistantApp(ctk.CTk):
         self.title("Mihail 0.2")
         self.geometry("300x500")
 
-        customtkinter.set_default_color_theme("dark-blue")
+        ctk.set_default_color_theme("dark-blue")
+
+        # Инициализация объектов распознавания речи
+        self.recognizer = sr.Recognizer()
+        self.microphone = sr.Microphone()
 
         # Кнопка для выхода из приложения
         quit_button = ctk.CTkButton(self, text="Quit", command=self.quit_app)
         quit_button.pack(pady=10)
 
-        # Кнопка для начала прослушивания
-        self.listen_button = ctk.CTkButton(self, text="Start Listening", command=self.toggle_listening)
-        self.listen_button.pack(pady=20)
+        # Переключатель для управления прослушиванием
+        self.listen_switch = ctk.CTkSwitch(self, text="Listening", command=self.toggle_listening)
+        self.listen_switch.pack(pady=20)
 
-
-
-
+        self.listening = False
+        self.listening_thread = None
 
     def quit_app(self):
-        self.quit()  # Завершение работы приложения
-
+        self.stop_listening()  # Останавливаем прослушивание перед выходом
+        self.quit()
+        try:
+            self.master.destroy()
+        except AttributeError:
+            self.destroy()
 
     def toggle_listening(self):
-        if self.listen_button.cget("text") == "Start Listening":
-            self.listen_button.configure(text="Stop Listening")
+        if self.listen_switch.get() == 1:
             self.start_listening()
         else:
-            self.listen_button.configure(text="Start Listening")
             self.stop_listening()
 
     def start_listening(self):
-        threading.Thread(target=self.listen).start()
+        if not self.listening:
+            self.listening = True
+            self.listening_thread = threading.Thread(target=self.listen)
+            self.listening_thread.start()
 
     def stop_listening(self):
-        self.listening = False
+        if self.listening:
+            self.listening = False
+            if self.listening_thread is not None:
+                self.listening_thread.join()  # Ожидание завершения потока
+                self.listening_thread = None  # Очистка ссылки на поток
 
     def listen(self):
-        self.listening = True
-        while self.listening:
-            with microphone as source:
-                recognizer.adjust_for_ambient_noise(source)
-                audio = recognizer.listen(source)
+        with self.microphone as source:
+            self.recognizer.adjust_for_ambient_noise(source, duration=1)  # Калибровка уровня окружающего шума
+            while self.listening:
+                try:
+                    print("Ожидание фразы...")
+                    audio = self.recognizer.listen(source, timeout=10)  # Установка тайм-аута на 10 секунд
+                    command = self.recognizer.recognize_google(audio, language="ru-RU").lower()
+                    print(f"[log] Распознано: {command}")
 
-            try:
-                command = recognizer.recognize_google(audio, language="ru-RU").lower()
-                print(f"[log] Распознано: {command}")
-                execute_cmd(recognize_cmd(command)['cmd'], command)
-            except sr.UnknownValueError:
-                print("Извините, я не расслышал команду.")
-            except sr.RequestError as e:
-                print(f"Ошибка сервиса распознавания речи; {e}")
+                    # Используем методы recognize_cmd и execute_cmd
+                    cmd_data = self.recognize_cmd(command)
+                    if cmd_data:
+                        self.execute_cmd(cmd_data['cmd'], command)
+
+                except sr.WaitTimeoutError:
+                    print("Таймаут ожидания фразы.")
+                except sr.UnknownValueError:
+                    print("Извините, я не расслышал команду.")
+                except sr.RequestError as e:
+                    print(f"Ошибка сервиса распознавания речи; {e}")
+                except Exception as e:
+                    print(f"Неизвестная ошибка: {e}")
+                finally:
+                    if not self.listening:
+                        break  # Выход из цикла при остановке прослушивания
+
+    def recognize_cmd(self, command):
+        # Определение команды из распознанной фразы
+        for cmd, phrases in opts['cmds'].items():
+            if any(phrase in command for phrase in phrases):
+                return {"cmd": cmd}
+        return None
+
+    def execute_cmd(self, cmd, voice_input=None):
+        commands = {
+            'ctime': lambda: speak(f"Сейчас {datetime.now().strftime('%H:%M')}"),
+            'data': lambda: speak(f"Сегодня {datetime.now().strftime('%d %B %Y')}"),
+            'radio': lambda: webbrowser.open(
+                "https://www.youtube.com/watch?v=7x3RW2BCG68&list=PL-SnCU0L3jIkKCh8o3W9hY8qTmHEYTtpt"),
+            'dis': lambda: os.system('taskmgr'),
+            'google': lambda: webbrowser.open_new('chrome'),
+            'spasibo': lambda: speak("Всегда пожалуйста"),
+            'kak_dela': lambda: speak("Все хорошо, спасибо что спросили"),
+            'steam': open_steam,
+            'ds': open_discord,
+            'wikipedia': lambda: speak(get_wikipedia_summary(voice_input)),
+            'open_window': lambda: open_window(clean_command(voice_input, window_cmd=True)),
+            'close_window': lambda: close_window(clean_command(voice_input, window_cmd=True)),
+            'minimize_window': lambda: minimize_window(clean_command(voice_input, window_cmd=True)),
+            'list_windows': list_windows,
+            'rus': switch_to_russian,
+            'ang': switch_to_english,
+            'change_volume': lambda: set_volume(get_volume_from_voice_input(voice_input)),
+            'googl_sk': search_google
+        }
+
+        command_func = commands.get(cmd, lambda: print("Извините, я не понимаю эту команду."))
+        command_func()
+
+    def clean_command(self, voice_input, window_cmd=False):
+        cmd = voice_input.lower()  # Преобразуем вход в нижний регистр
+        for alias in opts['alias']:
+            cmd = cmd.replace(alias, '')
+        for tbr in opts['tbr']:
+            cmd = cmd.replace(tbr, '')
+        cleaned_cmd = ' '.join(cmd.split())  # Удалить лишние пробелы
+        if window_cmd:
+            # Удаление избыточных слов
+            for word in ['окно', 'открой', 'закрой', 'сверни']:
+                cleaned_cmd = cleaned_cmd.replace(word, '').strip()
+        return cleaned_cmd
 
 
 if __name__ == "__main__":
     app = VoiceAssistantApp()
     app.mainloop()
+
+    # class VoiceAssistantApp(ctk.CTk):
+    #     def __init__(self):
+    #         super().__init__()
+    #
+    #         self.title("Mihail 0.2")
+    #         self.geometry("300x500")
+    #
+    #         customtkinter.set_default_color_theme("dark-blue")
+    #
+    #         # Кнопка для выхода из приложения
+    #         quit_button = ctk.CTkButton(self, text="Quit", command=self.quit_app)
+    #         quit_button.pack(pady=10)
+    #
+    #         # Кнопка для начала прослушивания
+    #         self.listen_button = ctk.CTkButton(self, text="Start Listening", command=self.toggle_listening)
+    #         self.listen_button.pack(pady=20)
+    #
+    #     def quit_app(self):
+    #         self.quit()  # Завершение работы окна приложения
+    #
+    #         # Попробуйте уничтожить окно с помощью self, если self.master не установлен
+    #         try:
+    #             self.master.destroy()
+    #         except AttributeError:
+    #             self.destroy()  # Уничтожение окна через self
+    #
+    #     def toggle_listening(self):
+    #         if self.listen_button.cget("text") == "Start Listening":
+    #             self.listen_button.configure(text="Stop Listening")
+    #             self.start_listening()
+    #         else:
+    #             self.listen_button.configure(text="Start Listening")
+    #             self.stop_listening()
+    #
+    #     def start_listening(self):
+    #         threading.Thread(target=self.listen).start()
+    #
+    #     def stop_listening(self):
+    #         self.listening = False
+    #
+    #     def listen(self):
+    #         self.listening = True
+    #         while self.listening:
+    #             with microphone as source:
+    #                 recognizer.adjust_for_ambient_noise(source)
+    #                 audio = recognizer.listen(source)
+    #
+    #             try:
+    #                 command = recognizer.recognize_google(audio, language="ru-RU").lower()
+    #                 print(f"[log] Распознано: {command}")
+    #                 execute_cmd(recognize_cmd(command)['cmd'], command)
+    #             except sr.UnknownValueError:
+    #                 print("Извините, я не расслышал команду.")
+    #             except sr.RequestError as e:
+    #                 print(f"Ошибка сервиса распознавания речи; {e}")
+    #
+    #
+    # if __name__ == "__main__":
+    #     app = VoiceAssistantApp()
+    #     app.mainloop()
