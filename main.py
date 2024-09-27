@@ -18,6 +18,10 @@ import pygetwindow as gw
 import pyautogui
 import ctypes
 import sys
+import locale
+import re
+
+
 # Инициализация colorama
 init(autoreset=True)
 
@@ -167,21 +171,21 @@ def execute_cmd(cmd, voice_input=None):
     global awaiting_confirmation, recording
     print_green(f"[log] Выполнение команды: {cmd}")
     commands = {
-        'ctime': lambda: speak(f"Сейчас {datetime.now().strftime('%H:%M')}"),
-        'data': data,
-        'radio': lambda: webbrowser.open("https://www.youtube.com"),
-        'stupid1': lambda: speak("Колобок повесился"),
-        'dis': lambda: os.system('taskmgr'),
-        'google': lambda: webbrowser.open_new('chrome'),
-        'spasibo': lambda: speak("Всегда к вашим услугам"),
-        'kak_dela': lambda: speak("Все хорошо, спасибо что спросили"),
-        'steam': open_steam,
-        'ds': open_discord,
-        'wikipedia': lambda: speak(get_wikipedia_summary(voice_input)),
-        'open_window': lambda: open_window(clean_command(voice_input, window_cmd=True)),
-        'close_window': lambda: close_window(clean_command(voice_input, window_cmd=True)),
-        'minimize_window': lambda: minimize_window(clean_command(voice_input, window_cmd=True)),
-        'list_windows': list_windows
+        'ctime': lambda: speak(f"Сейчас {datetime.now().strftime('%H:%M')}"),#работает
+        'data': data,#работает
+        'radio': lambda: webbrowser.open("https://www.youtube.com"),#работает
+        'stupid1': lambda: speak("Колобок повесился"),#работает
+        'dis': lambda: os.system('taskmgr'),#работает
+        'google': lambda: webbrowser.open_new('chrome'),#работает
+        'spasibo': lambda: speak("Всегда к вашим услугам"),#работает
+        'kak_dela': lambda: speak("Все хорошо, спасибо что спросили"),#работает
+        'steam': open_steam,#работает
+        'ds': open_discord,#работает
+        'wikipedia': lambda: speak(get_wikipedia_summary(voice_input)),#рабоетает
+        'open_window': lambda: open_window(clean_command(voice_input, window_cmd=True)),#работпет 
+        'close_window': lambda: close_window(clean_command(voice_input, window_cmd=True)),#работает
+        'minimize_window': lambda: minimize_window(clean_command(voice_input, window_cmd=True)),#работает
+        'list_windows': list_windows#работает
     }
 
     if cmd in commands:
@@ -189,15 +193,32 @@ def execute_cmd(cmd, voice_input=None):
     else:
         speak("Команда не распознана, повторите!")
 
-# очистка команд
+
+
 def clean_command(cmd, window_cmd=False):
-    original_cmd = cmd.lower()
-    # Не удаляем "что такое", чтобы команда распознавалась как запрос к Википедии
-    for t in opts['tbr']:
-        if "что такое" not in original_cmd:  # Проверка, если команда содержит "что такое"
-            original_cmd = original_cmd.replace(t, '').strip()
-    print(f"[log] Очищенная команда: {original_cmd}")
-    return original_cmd
+    cmd = cmd.lower()
+    
+    # Удаление обращения к ассистенту
+    for alias in opts['alias']:
+        cmd = cmd.replace(alias, '')
+    
+    # Удаление мусорных слов
+    for tbr in opts['tbr']:
+        cmd = cmd.replace(tbr, '')
+    
+    # Удаление лишних пробелов
+    cleaned_cmd = ' '.join(cmd.split())
+    
+    # Если команда связана с окнами, удаляем "служебные" слова, но оставляем название окна
+    if window_cmd:
+        # Используем регулярное выражение для удаления слов "окно", "открой", и т.д. только в начале строки
+        cleaned_cmd = re.sub(r'\b(открой|закрой|окно|сверни)\b', '', cleaned_cmd).strip()
+    
+    # Возвращаем очищенную команду
+    return cleaned_cmd
+
+
+
 
 
 
@@ -248,20 +269,25 @@ def open_discord():
             except Exception as e:
                 print(f"Произошла ошибка при запуске Discord: {e}")
         else:
-            # Повышение прав для выполнения команды с правами администратора
-            print("Перезапуск с правами администратора...")
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
+            speak("Дискорд не обноружен")
     else:
         subprocess.Popen(['discord'])
 
-#if __name__ == '__main__':
-#    open_discord()
 
 def data():
-    speak(f"Сегодня {datetime.now().strftime('%d %B %Y года')}, {calendar.day_name[datetime.now().weekday()]}.")
+    try:
+        # Попробуйте установить другую локализацию
+        locale.setlocale(locale.LC_TIME, 'ru_RU')
+    except locale.Error:
+        print("Локализация не поддерживается на этой системе")
+    today_date = datetime.now().strftime('%d %B %Y года')
+    today_weekday = datetime.now().strftime('%A')
+    speak(f"Сегодня {today_date}, {today_weekday}.")
+    #speak(f"Сегодня {datetime.now().strftime('%d %B %Y года')}, {calendar.day_name[datetime.now().weekday()]}.")
 
 def main():
     try:
+        #здесь начало работы сюды пихай то что он должен говорить и показывать в начале
         while True:
             with microphone as source:
                 print_green("[log] Ожидание команды...")
