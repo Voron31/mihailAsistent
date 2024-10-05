@@ -20,6 +20,9 @@ import ctypes
 import sys
 import locale
 import re
+import requests
+import json
+import wikipediaapi
 
 
 # Инициализация colorama
@@ -46,7 +49,7 @@ opts = {
         "yes": ('да', 'конечно', 'ага'),
         "no": ('нет', 'неа', 'отмена'),
         "dis": ('открой нагрузку', 'открой диспетчер задач'),
-        "wikipedia": ('найди википедия', 'поиск в википедии', 'что такое', 'найди в википедии'),
+        "wikipedia": ('найди википедия', 'поиск в википедии', 'что такое','Что такое', 'найди в википедии'),
         "search_google": ('найди в гугл', 'найди в гугле', 'поиск в гугл', 'ищи в гугл', 'найди в google', 'найди', 'найди что такое'),
         "open_window": ('открой окно', 'активируй окно', 'покажи окно'),
         "close_window": ('закрой окно', 'удали окно'),
@@ -63,6 +66,9 @@ speak_engine.setProperty('voice', speak_engine.getProperty('voices')[0].id)
 recognizer = sr.Recognizer()
 microphone = sr.Microphone()
 
+# Путь к файлу для сохранения данных
+DATA_FILE = "currency_data.json"
+
 # Флаг для ожидания ответа на запрос подтверждения
 awaiting_confirmation = False
 recording = False
@@ -78,9 +84,12 @@ def speak(what):
 
 def recognize_cmd(cmd):
     RC = {'cmd': '', 'percent': 0}
-    if "что такое" in cmd:  # Если команда содержит "что такое", отправляем её в Википедию
+    
+    # Проверяем на наличие запроса к Википедии
+    if "что такое" in cmd or "поиск в википедии" in cmd:
         return {'cmd': 'wikipedia', 'percent': 100}
     
+    # Остальная логика
     for c, v in opts['cmds'].items():
         for x in v:
             vrt = fuzz.ratio(cmd, x)
@@ -92,7 +101,6 @@ def recognize_cmd(cmd):
         return RC
     else:
         return {'cmd': '', 'percent': 0}
-
 
 # функция лист октивных окон
 def list_windows():
@@ -170,23 +178,31 @@ def minimize_window(title):
 def execute_cmd(cmd, voice_input=None):
     global awaiting_confirmation, recording
     print_green(f"[log] Выполнение команды: {cmd}")
+
+    # Команды
     commands = {
-        'ctime': lambda: speak(f"Сейчас {datetime.now().strftime('%H:%M')}"),#работает
-        'data': data,#работает
-        'radio': lambda: webbrowser.open("https://www.youtube.com"),#работает
-        'stupid1': lambda: speak("Колобок повесился"),#работает
-        'dis': lambda: os.system('taskmgr'),#работает
-        'google': lambda: webbrowser.open_new('chrome'),#работает
-        'spasibo': lambda: speak("Всегда к вашим услугам"),#работает
-        'kak_dela': lambda: speak("Все хорошо, спасибо что спросили"),#работает
-        'steam': open_steam,#работает
-        'ds': open_discord,#работает
-        'wikipedia': lambda: speak(get_wikipedia_summary(voice_input)),#рабоетает
-        'open_window': lambda: open_window(clean_command(voice_input, window_cmd=True)),#работпет 
-        'close_window': lambda: close_window(clean_command(voice_input, window_cmd=True)),#работает
-        'minimize_window': lambda: minimize_window(clean_command(voice_input, window_cmd=True)),#работает
-        'list_windows': list_windows#работает
+        'ctime': lambda: speak(f"Сейчас {datetime.now().strftime('%H:%M')}"),#раб
+        'data': data,#раб
+        'radio': lambda: webbrowser.open("https://www.youtube.com"),#раб
+        'stupid1': lambda: speak("Колобок повесился"),#раб
+        'dis': lambda: os.system('taskmgr'),#раб
+        'google': lambda: webbrowser.open_new('chrome'),#раб
+        'spasibo': lambda: speak("Всегда к вашим услугам"),#раб
+        'kak_dela': lambda: speak("Все хорошо, спасибо что спросили"),#раб
+        'steam': open_steam,#раб
+        'ds': open_discord,#раб
+        'wikipedia': lambda: speak(get_wikipedia_summary(clean_wikipedia_command(voice_input))),#раб
+        'open_window': lambda: open_window(clean_command(voice_input, window_cmd=True)),#раб
+        'close_window': lambda: close_window(clean_command(voice_input, window_cmd=True)),#раб
+        'minimize_window': lambda: minimize_window(clean_command(voice_input, window_cmd=True)),#раб
+        'list_windows': list_windows#раб
     }
+
+    # Обработка команды "что такое"
+    if "что такое" in voice_input.lower():
+        query = voice_input.lower().replace("википедия", "").strip()
+        summary = get_wikipedia_summary(query)  # Передаем очищенный запрос
+        speak(summary)  # Отправляем результат обратно
 
     if cmd in commands:
         commands[cmd]()
@@ -228,10 +244,11 @@ def get_wikipedia_summary(voice_input):
     reg_ex = re.search('что такое (.*)', voice_input)
     if reg_ex:
         topic = reg_ex.group(1).strip()
+        
         print(f"[log] Поиск информации по теме: {topic}")
         try:
             topic = topic.replace(" ", "_")
-            url = f'https://ru.wikipedia.org/wiki/{topic}'
+            url = f'https://ru.wikipedia.org/wiki/{topic}'  # Замените 'звук' на 'topic'
             response = requests.get(url)
             print(f"[log] Запрос к Википедии по URL: {url}")
             if response.status_code == 200:
@@ -245,6 +262,12 @@ def get_wikipedia_summary(voice_input):
         except Exception as e:
             return f"Произошла ошибка при поиске в Википедии: {e}"
     return "Не удалось найти информацию по вашему запросу в Википедии."
+
+
+def clean_wikipedia_command(cmd):
+    # Очистка команды, убираем лишние слова
+    cmd = cmd.lower().replace("миша", "").replace("поиск в википедии", "").replace("что такое", "").strip()
+    return cmd
 
 
 # открытие стим
@@ -273,6 +296,54 @@ def open_discord():
     else:
         subprocess.Popen(['discord'])
 
+def get_currency_rates():
+    url = "https://api.monobank.ua/bank/currency"
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            save_currency_data(data)
+            return data
+        else:
+            print("Не удалось получить данные от Monobank.")
+            return load_saved_data()
+    except requests.exceptions.RequestException:
+        print("Ошибка сети. Используются сохраненные данные.")
+        return load_saved_data()
+    
+def save_currency_data(data):
+    # Сохраняем данные в файл с текущей датой обновления
+    with open(DATA_FILE, 'w') as f:
+        json.dump({
+            "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "rates": data
+        }, f)
+
+
+def load_saved_data():
+    # Загружаем данные из файла, если он существует
+    try:
+        with open(DATA_FILE, 'r') as f:
+            saved_data = json.load(f)
+            print(f"Используются данные от {saved_data['date']}")
+            return saved_data['rates']
+    except (FileNotFoundError, json.JSONDecodeError):
+        print("Нет сохраненных данных.")
+        return None
+
+def print_currency_rates(data):
+    currency_ids = [840, 978]  # USD и EUR
+    currency_names = {840: "USD", 978: "EUR"}
+    
+    for entry in data:
+        if entry['currencyCodeA'] in currency_ids and entry['currencyCodeB'] == 980:  # UAH
+            currency_code = entry['currencyCodeA']
+            rate_buy = entry.get('rateBuy')
+            rate_sell = entry.get('rateSell')
+            
+            if rate_buy is not None and rate_sell is not None:
+                print(f"1 {currency_names[currency_code]} = {rate_buy} UAH (покупка), {rate_sell} UAH (продажа)")
+
 
 def data():
     try:
@@ -285,9 +356,30 @@ def data():
     speak(f"Сегодня {today_date}, {today_weekday}.")
     #speak(f"Сегодня {datetime.now().strftime('%d %B %Y года')}, {calendar.day_name[datetime.now().weekday()]}.")
 
+def greet_in_soviet_style_1():
+    try:
+        locale.setlocale(locale.LC_TIME, 'ru_RU')  # Устанавливаем русскую локализацию
+    except locale.Error:
+        print("Локализация не поддерживается на этой системе")
+    
+    today_date = datetime.now().strftime('%d %B %Y года')
+    today_weekday = datetime.now().strftime('%A')
+    
+    speak("Здравствуйте, товарищ!")
+    speak(f"Сегодня на дворе {today_date}, {today_weekday}.")
+    print_green("Наступило время великих свершений и трудовых подвигов во славу СССР!")
+    data = get_currency_rates()
+    if data:
+        print_green("Текущие курсы валют, необходимые для планирования народного хозяйства:")
+        print_currency_rates(data)
+        
+    else:
+        print("Не удалось загрузить курсы валют.")
+
+
 def main():
     try:
-        #здесь начало работы сюды пихай то что он должен говорить и показывать в начале
+        greet_in_soviet_style_1()
         while True:
             with microphone as source:
                 print_green("[log] Ожидание команды...")
@@ -296,13 +388,17 @@ def main():
             try:
                 voice_input = recognizer.recognize_google(audio, language="ru-RU")
                 print_green(f"[log] Распознано: {voice_input}")
+                
                 if any(alias in voice_input.lower() for alias in opts["alias"]):
-                    voice_input = clean_command(voice_input.lower())  # Очистка команды здесь
-                    cmd = recognize_cmd(voice_input)
+                    cmd = recognize_cmd(voice_input)  # Используйте `voice_input` без очистки
                     if cmd['cmd']:
                         execute_cmd(cmd['cmd'], voice_input)
                     else:
                         speak("Команда не распознана, повторите!")
+                elif "википедия" in voice_input.lower():
+                    query = voice_input.lower().replace("википедия", "").strip()  # Извлечение запроса
+                    cmd = {"cmd": "wikipedia"}
+                    execute_cmd(cmd['cmd'], query)  # Передаем только запрос
                 elif recording:
                     write_recording(voice_input)
                 time.sleep(0.1)
@@ -310,10 +406,17 @@ def main():
                 print_green("[log] Не удалось распознать речь")
             except sr.RequestError as e:
                 print_green(f"[log] Ошибка сервиса распознавания речи; {e}")
-    except Exception as e:
-        print_green(f"[log] Произошла ошибка: {e}")
+            except Exception as e:
+                print_green(f"[log] Произошла ошибка во время обработки: {e}")
     except KeyboardInterrupt:
         print_green("[log] Остановлено пользователем")
+    except Exception as e:
+        print_green(f"[log] Произошла ошибка: {e}")
 
 if __name__ == '__main__':
     main()
+
+
+
+
+
