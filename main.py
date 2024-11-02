@@ -23,7 +23,7 @@ import re
 import requests
 import json
 import wikipediaapi
-
+import keyboard
 
 # Инициализация colorama
 init(autoreset=True)
@@ -54,7 +54,8 @@ opts = {
         "open_window": ('открой окно', 'активируй окно', 'покажи окно'),
         "close_window": ('закрой окно', 'удали окно'),
         "minimize_window": ('сверни окно', 'убери окно'),
-        "list_windows": ('покажи окна', 'какие окна открыты', 'список окон')
+        "list_windows": ('покажи окна', 'какие окна открыты', 'список окон'),
+        "press":('смени язык','другой язык','смени раскладку')
     }
 }
 
@@ -195,7 +196,8 @@ def execute_cmd(cmd, voice_input=None):
         'open_window': lambda: open_window(clean_command(voice_input, window_cmd=True)),#раб
         'close_window': lambda: close_window(clean_command(voice_input, window_cmd=True)),#раб
         'minimize_window': lambda: minimize_window(clean_command(voice_input, window_cmd=True)),#раб
-        'list_windows': list_windows#раб
+        'list_windows': list_windows,#раб
+        'press':press #раб
     }
 
     # Обработка команды "что такое"
@@ -296,6 +298,12 @@ def open_discord():
     else:
         subprocess.Popen(['discord'])
 
+def press():
+    keyboard.send("shift+alt")
+
+
+
+
 def get_currency_rates():
     url = "https://api.monobank.ua/bank/currency"
     try:
@@ -365,6 +373,18 @@ def greet_in_soviet_style_1():
     today_date = datetime.now().strftime('%d %B %Y года')
     today_weekday = datetime.now().strftime('%A')
     
+    print_green("""
+
+ ██████   ██████  ███  █████                 ███  ████ 
+░░██████ ██████  ░░░  ░░███                 ░░░  ░░███ 
+ ░███░█████░███  ████  ░███████    ██████   ████  ░███ 
+ ░███░░███ ░███ ░░███  ░███░░███  ░░░░░███ ░░███  ░███ 
+ ░███ ░░░  ░███  ░███  ░███ ░███   ███████  ░███  ░███ 
+ ░███      ░███  ░███  ░███ ░███  ███░░███  ░███  ░███ 
+ █████     █████ █████ ████ █████░░████████ █████ █████
+░░░░░     ░░░░░ ░░░░░ ░░░░ ░░░░░  ░░░░░░░░ ░░░░░ ░░░░░ 
+""")
+
     speak("Здравствуйте, товарищ!")
     speak(f"Сегодня на дворе {today_date}, {today_weekday}.")
     print_green("Наступило время великих свершений и трудовых подвигов во славу СССР!")
@@ -415,8 +435,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
